@@ -381,6 +381,11 @@ public class MetricsSource implements BaseSource {
     globalSourceSource.incrUnknownFileLengthForClosedWAL();
   }
 
+  public void incrWalAppendBytes(final long size) {
+    singleSourceSource.incrWalAppendBytes(size);
+    globalSourceSource.incrWalAppendBytes(size);
+  }
+
   public void incrUncleanlyClosedWALs() {
     singleSourceSource.incrUncleanlyClosedWALs();
     globalSourceSource.incrUncleanlyClosedWALs();
