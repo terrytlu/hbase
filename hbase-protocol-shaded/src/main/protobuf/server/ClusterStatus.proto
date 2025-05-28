@@ -250,6 +250,17 @@ message ServerTask {
   }
 }
 
+message ClientInfo {
+  required string clientIp = 1;
+  required string clientVersion = 2;
+  required string userName = 3;
+  required string auth = 4;
+  required string serviceName = 5;
+  required string serverInfo = 6;
+  repeated uint32 clientPorts = 7;
+  required uint32 socketNum = 8;
+}
+
 message ServerLoad {
   /** Number of requests since last report. */
   optional uint64 number_of_requests = 1;
@@ -326,6 +337,11 @@ message ServerLoad {
    * The metrics for region cached on this region server
    */
   map<string, uint32> regionCachedInfo = 16;
+
+  /**
+ * The info for client connections on this region server
+ */
+  repeated ClientInfo clientInfo = 17;
 }
 
 message LiveServerInfo {

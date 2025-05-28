@@ -518,6 +518,7 @@ AssignmentManager assignmentManager = master.getAssignmentManager();
                     '.cls_separator': {sorter: 'separator'}
                 }
             });
+            $("#clientConnectionStatsTable").tablesorter();
 
             $("#userTables").tablesorter();
 

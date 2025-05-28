@@ -368,6 +368,7 @@ abstract class ServerRpcConnection implements Closeable {
       processConnectionHeader(buf);
       callCleanupIfNeeded();
       this.connectionHeaderRead = true;
+      writeClientConnectionInfo();
       this.rpcServer.getRpcCoprocessorHost().preAuthorizeConnection(connectionHeader, addr);
       if (rpcServer.needAuthorization() && !authorizeConnection()) {
         // Throw FatalConnectionException wrapping ACE so client does right thing and closes
@@ -528,6 +529,8 @@ abstract class ServerRpcConnection implements Closeable {
   }
 
   protected abstract void doRespond(RpcResponse resp) throws IOException;
+
+  protected abstract void writeClientConnectionInfo();
 
   /**
    * Has the request header and the request param and optionally encoded data buffer all in this one

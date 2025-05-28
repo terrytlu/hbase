@@ -19,6 +19,8 @@ package org.apache.hadoop.hbase.ipc;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
+import java.util.List;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.ExtendedCellScanner;
 import org.apache.hadoop.hbase.io.ByteBuffAllocator;
@@ -30,6 +32,8 @@ import org.apache.hadoop.security.authorize.PolicyProvider;
 import org.apache.yetus.audience.InterfaceAudience;
 
 import org.apache.hbase.thirdparty.com.google.protobuf.Message;
+
+import org.apache.hadoop.hbase.shaded.protobuf.generated.ClusterStatusProtos;
 
 @InterfaceAudience.Private
 public interface RpcServerInterface {
@@ -87,4 +91,9 @@ public interface RpcServerInterface {
 
   /** Return RPC's instance of {@link RpcCoprocessorHost} */
   RpcCoprocessorHost getRpcCoprocessorHost();
+
+  /** Return RPC server client connection info */
+  default List<ClusterStatusProtos.ClientInfo> getRSClientInfo() {
+    return new ArrayList<>();
+  }
 }

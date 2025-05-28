@@ -21,6 +21,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.hadoop.hbase.master.ClientConnectionInfo;
 import org.apache.hadoop.hbase.replication.ReplicationLoadSink;
 import org.apache.hadoop.hbase.replication.ReplicationLoadSource;
 import org.apache.yetus.audience.InterfaceAudience;
@@ -112,4 +113,11 @@ public interface ServerMetrics {
    *         rounded to MB
    */
   Map<String, Integer> getRegionCachedInfo();
+
+  /**
+   * Call directly from client such as hbase shell
+   * @return the list of ClientConnectionList
+   */
+  List<ClientConnectionInfo> getClientConnectionList();
+
 }

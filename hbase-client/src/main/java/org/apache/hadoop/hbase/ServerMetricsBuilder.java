@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
+import org.apache.hadoop.hbase.master.ClientConnectionInfo;
 import org.apache.hadoop.hbase.replication.ReplicationLoadSink;
 import org.apache.hadoop.hbase.replication.ReplicationLoadSource;
 import org.apache.hadoop.hbase.util.Bytes;
@@ -83,9 +84,11 @@ public final class ServerMetricsBuilder {
       .setReplicationLoadSink(serverLoadPB.hasReplLoadSink()
         ? ProtobufUtil.toReplicationLoadSink(serverLoadPB.getReplLoadSink())
         : null)
-      .setTasks(serverLoadPB.getTasksList().stream().map(ProtobufUtil::getServerTask)
-        .collect(Collectors.toList()))
+      .setTasks(serverLoadPB
+        .getTasksList().stream().map(ProtobufUtil::getServerTask).collect(Collectors.toList()))
       .setRegionCachedInfo(serverLoadPB.getRegionCachedInfoMap())
+      .setClientConnectionInfos(serverLoadPB.getClientInfoList().stream()
+        .map(ProtobufUtil::toClientConnectionInfo).collect(Collectors.toList()))
       .setReportTimestamp(serverLoadPB.getReportEndTime())
       .setLastReportTimestamp(serverLoadPB.getReportStartTime()).setVersionNumber(versionNumber)
       .setVersion(version).build();
@@ -112,6 +115,8 @@ public final class ServerMetricsBuilder {
         .map(ProtobufUtil::toReplicationLoadSource).collect(Collectors.toList()))
       .addAllTasks(
         metrics.getTasks().stream().map(ProtobufUtil::toServerTask).collect(Collectors.toList()))
+      .addAllClientInfo(metrics.getClientConnectionList().stream().map(ProtobufUtil::toClientInfo)
+        .collect(Collectors.toList()))
       .putAllRegionCachedInfo(metrics.getRegionCachedInfo())
       .setReportStartTime(metrics.getLastReportTimestamp())
       .setReportEndTime(metrics.getReportTimestamp());
@@ -145,6 +150,7 @@ public final class ServerMetricsBuilder {
   private long lastReportTimestamp = 0;
   private final List<ServerTask> tasks = new ArrayList<>();
   private Map<String, Integer> regionCachedInfo = new HashMap<>();
+  private final List<ClientConnectionInfo> clientConnectionInfos = new ArrayList<>();
 
   private ServerMetricsBuilder(ServerName serverName) {
     this.serverName = serverName;
@@ -240,11 +246,16 @@ public final class ServerMetricsBuilder {
     return this;
   }
 
+  public ServerMetricsBuilder setClientConnectionInfos(List<ClientConnectionInfo> value) {
+    this.clientConnectionInfos.addAll(value);
+    return this;
+  }
+
   public ServerMetrics build() {
     return new ServerMetricsImpl(serverName, versionNumber, version, requestCountPerSecond,
       requestCount, readRequestCount, writeRequestCount, usedHeapSize, maxHeapSize, infoServerPort,
       sources, sink, regionStatus, coprocessorNames, reportTimestamp, lastReportTimestamp,
-      userMetrics, tasks, regionCachedInfo);
+      userMetrics, tasks, regionCachedInfo, clientConnectionInfos);
   }
 
   private static class ServerMetricsImpl implements ServerMetrics {
@@ -268,6 +279,7 @@ public final class ServerMetricsBuilder {
     private final Map<byte[], UserMetrics> userMetrics;
     private final List<ServerTask> tasks;
     private final Map<String, Integer> regionCachedInfo;
+    private final List<ClientConnectionInfo> clientInfos;
 
     ServerMetricsImpl(ServerName serverName, int versionNumber, String version,
       long requestCountPerSecond, long requestCount, long readRequestsCount,
@@ -275,7 +287,7 @@ public final class ServerMetricsBuilder {
       List<ReplicationLoadSource> sources, ReplicationLoadSink sink,
       Map<byte[], RegionMetrics> regionStatus, Set<String> coprocessorNames, long reportTimestamp,
       long lastReportTimestamp, Map<byte[], UserMetrics> userMetrics, List<ServerTask> tasks,
-      Map<String, Integer> regionCachedInfo) {
+      Map<String, Integer> regionCachedInfo, List<ClientConnectionInfo> clientInfos) {
       this.serverName = Preconditions.checkNotNull(serverName);
       this.versionNumber = versionNumber;
       this.version = version;
@@ -295,6 +307,7 @@ public final class ServerMetricsBuilder {
       this.lastReportTimestamp = lastReportTimestamp;
       this.tasks = tasks;
       this.regionCachedInfo = regionCachedInfo;
+      this.clientInfos = Preconditions.checkNotNull(clientInfos);
     }
 
     @Override
@@ -400,6 +413,11 @@ public final class ServerMetricsBuilder {
     @Override
     public Map<String, Integer> getRegionCachedInfo() {
       return Collections.unmodifiableMap(regionCachedInfo);
+    }
+
+    @Override
+    public List<ClientConnectionInfo> getClientConnectionList() {
+      return Collections.unmodifiableList(clientInfos);
     }
 
     @Override

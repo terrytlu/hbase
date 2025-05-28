@@ -461,4 +461,7 @@ class SimpleServerRpcConnection extends ServerRpcConnection {
   protected void doRespond(RpcResponse resp) throws IOException {
     responder.doRespond(this, resp);
   }
+
+  protected void writeClientConnectionInfo() {
+  }
 }

@@ -17,9 +17,13 @@
  */
 package org.apache.hadoop.hbase.ipc;
 
+import static org.apache.hadoop.hbase.ipc.NettyRpcServer.CHANNEL_CLIENT_ATTR_KEY;
+import static org.apache.hadoop.hbase.ipc.NettyRpcServer.LOG;
+
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import org.apache.commons.lang3.time.DateFormatUtils;
 import org.apache.hadoop.hbase.ExtendedCellScanner;
 import org.apache.hadoop.hbase.ipc.RpcServer.CallCleanup;
 import org.apache.hadoop.hbase.nio.ByteBuff;
@@ -92,6 +96,45 @@ class NettyServerRpcConnection extends ServerRpcConnection {
       throw e;
     } finally {
       this.callCleanup = null;
+    }
+  }
+
+  protected void writeClientConnectionInfo() {
+    try {
+      if (connectionHeaderRead && connectionHeader != null) {
+        ChannelAttributes attrs = new ChannelAttributes();
+
+        String version;
+        if (this.connectionHeader.hasVersionInfo()) {
+          version = this.connectionHeader.getVersionInfo().getVersion();
+        } else {
+          version = "UNKNOWN";
+        }
+
+        String currentTime = DateFormatUtils.ISO_8601_EXTENDED_DATETIME_TIME_ZONE_FORMAT
+          .format(System.currentTimeMillis());
+
+        // set attributes
+        attrs.setUserName(this.ugi.getUserName());
+        attrs.setAuthenticationMethod(this.ugi.getAuthenticationMethod().toString());
+        attrs.setVersionInfo(version);
+        attrs.setStartTime(currentTime);
+        attrs.setClientIP(this.hostAddress);
+        attrs.setClientPort(this.remotePort);
+
+        String serviceName;
+        if (this.connectionHeader.hasServiceName()) {
+          serviceName = connectionHeader.getServiceName();
+        } else {
+          serviceName = "UNKNOWN";
+        }
+        attrs.setServiceName(serviceName);
+
+        // set attributes to channel
+        channel.attr(CHANNEL_CLIENT_ATTR_KEY).set(attrs);
+      }
+    } catch (Exception e) {
+      LOG.warn("writeConnectionInfo meet exception ", e);
     }
   }
 

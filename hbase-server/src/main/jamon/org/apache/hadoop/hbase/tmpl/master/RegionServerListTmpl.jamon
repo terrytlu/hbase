@@ -34,6 +34,7 @@ HMaster master;
         org.apache.hadoop.hbase.Size;
         org.apache.hadoop.hbase.util.VersionInfo;
         org.apache.hadoop.hbase.util.Pair;
+        org.apache.hadoop.hbase.master.ClientConnectionInfo;
         org.apache.hadoop.util.StringUtils.TraditionalBinaryPrefix;
         org.apache.hadoop.hbase.net.Address;
         org.apache.hadoop.hbase.rsgroup.RSGroupInfo;
@@ -67,6 +68,9 @@ Arrays.sort(serverNames);
         <li class="nav-item">
           <a class="nav-link" href="#tab_replicationStats" data-bs-toggle="tab" role="tab">Replications</a>
         </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#tab_clientConnectionStats" data-bs-toggle="tab" role="tab">ClientConnections</a>
+        </li>
     </ul>
     <div class="tab-content">
         <div class="tab-pane active" id="tab_baseStats" role="tabpanel">
@@ -86,6 +90,9 @@ Arrays.sort(serverNames);
         </div>
         <div class="tab-pane" id="tab_replicationStats" role="tabpanel">
             <& replicationStats; serverNames = serverNames; &>
+        </div>
+        <div class="tab-pane" id="tab_clientConnectionStats" role="tabpanel">
+            <& clientConnectionStats; serverNames = serverNames; &>
         </div>
     </div>
 </div>
@@ -497,6 +504,52 @@ if  (totalCompactingCells > 0) {
 </%if>
 </%def>
 
+<%def clientConnectionStats>
+<%args>
+        ServerName [] serverNames;
+</%args>
+<table id="clientConnectionStatsTable" class="tablesorter table table-striped">
+<thead>
+<tr>
+    <th>ClientIP</th>
+    <th>UserName</th>
+    <th>ClientVersion</th>
+    <th>ServiceName</th>
+    <th>ServerInfo</th>
+    <th>SocketNum</th>
+</tr>
+</thead>
+<tbody>
+<%java>
+for (ServerName serverName: serverNames) {
+    ServerMetrics sl = master.getServerManager().getLoad(serverName);
+    if (sl != null) {
+        List<ClientConnectionInfo> clientConnections = sl.getClientConnectionList();
+
+        for (ClientConnectionInfo client : clientConnections) {
+        </%java>
+
+        <tr>
+        <td><% client.getClientIP() %></td>
+        <td><% client.getUserName() %></td>
+        <td><% client.getClientVersion() %></td>
+        <td><% client.getServiceName() %></td>
+        <td><% client.getServerInfo() %></td>
+        <td><% client.getSocketNum() %></td>
+        </tr>
+
+        <%java>
+        }
+    } else {
+        </%java>
+<& emptyStat; serverName=serverName; &>
+<%java>
+    }
+}
+</%java>
+</tbody>
+</table>
+</%def>
 
 
 <%def serverNameLink>

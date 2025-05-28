@@ -111,6 +111,7 @@ import org.apache.hadoop.hbase.filter.BinaryComparator;
 import org.apache.hadoop.hbase.filter.ByteArrayComparable;
 import org.apache.hadoop.hbase.filter.Filter;
 import org.apache.hadoop.hbase.io.TimeRange;
+import org.apache.hadoop.hbase.master.ClientConnectionInfo;
 import org.apache.hadoop.hbase.master.RegionState;
 import org.apache.hadoop.hbase.net.Address;
 import org.apache.hadoop.hbase.protobuf.ProtobufMagic;
@@ -2834,6 +2835,18 @@ public final class ProtobufUtil {
   }
 
   /**
+   * Convert a protocol buffer ClientInfo to a client ClientConnectionInfo.
+   * @param clientInfo The protocol buffer ClientInfo to convert.
+   * @return The converted ClientConnectionInfo object.
+   */
+  public static ClientConnectionInfo
+    toClientConnectionInfo(ClusterStatusProtos.ClientInfo clientInfo) {
+    return new ClientConnectionInfo(clientInfo.getClientIp(), clientInfo.getClientVersion(),
+      clientInfo.getUserName(), clientInfo.getAuth(), clientInfo.getServiceName(),
+      clientInfo.getServerInfo(), clientInfo.getClientPortsList(), clientInfo.getSocketNum());
+  }
+
+  /**
    * Get a protocol buffer VersionInfo
    * @return the converted protocol buffer VersionInfo
    */
@@ -3850,6 +3863,14 @@ public final class ProtobufUtil {
       .setStatus(task.getStatus())
       .setState(ClusterStatusProtos.ServerTask.State.valueOf(task.getState().name()))
       .setStartTime(task.getStartTime()).setCompletionTime(task.getCompletionTime()).build();
+  }
+
+  public static ClusterStatusProtos.ClientInfo toClientInfo(ClientConnectionInfo client) {
+    return ClusterStatusProtos.ClientInfo.newBuilder().setClientIp(client.getClientIP())
+      .setUserName(client.getUserName()).setClientVersion(client.getClientVersion())
+      .setAuth(client.getAuthenticationMethod()).setServiceName(client.getServiceName())
+      .setServerInfo(client.getServerInfo()).addAllClientPorts(client.getClientPorts())
+      .setSocketNum(client.getSocketNum()).build();
   }
 
   public static ClientProtos.QueryMetrics toQueryMetrics(QueryMetrics metrics) {

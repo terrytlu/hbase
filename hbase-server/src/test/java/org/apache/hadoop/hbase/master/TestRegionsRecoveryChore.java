@@ -20,6 +20,7 @@ package org.apache.hadoop.hbase.master;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -403,6 +404,10 @@ public class TestRegionsRecoveryChore {
       @Override
       public Map<String, Integer> getRegionCachedInfo() {
         return new HashMap<>();
+      }
+
+      public List<ClientConnectionInfo> getClientConnectionList() {
+        return new ArrayList<>();
       }
     };
     return serverMetrics;

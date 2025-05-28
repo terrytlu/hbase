@@ -20,8 +20,15 @@ package org.apache.hadoop.hbase;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.io.IOException;
+import java.util.EnumSet;
+import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.testclassification.MiscTests;
 import org.apache.hadoop.hbase.testclassification.SmallTests;
+import org.apache.hadoop.hbase.util.Bytes;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -37,6 +44,27 @@ public class TestServerMetrics {
   @ClassRule
   public static final HBaseClassTestRule CLASS_RULE =
     HBaseClassTestRule.forClass(TestServerMetrics.class);
+  private static final HBaseTestingUtil UTIL = new HBaseTestingUtil();
+  private static Admin admin;
+  private static TableName tableName = TableName.valueOf("TestServerMetrics");
+
+  @BeforeClass
+  public static void beforeClass() throws Exception {
+    // Make servers report eagerly. This test is about looking at the cluster status reported.
+    // Make it so we don't have to wait around too long to see change.
+    UTIL.getConfiguration().setInt("hbase.regionserver.msginterval", 100);
+    UTIL.startMiniCluster(1);
+    byte[] FAMILY = Bytes.toBytes("f");
+    Table table = UTIL.createTable(tableName, FAMILY, 16);
+    UTIL.loadTable(table, FAMILY);
+    admin = UTIL.getAdmin();
+  }
+
+  @AfterClass
+  public static void afterClass() throws Exception {
+    UTIL.deleteTableIfAny(tableName);
+    UTIL.shutdownMiniCluster();
+  }
 
   @Test
   public void testRegionLoadAggregation() {
@@ -115,6 +143,15 @@ public class TestServerMetrics {
     ClusterStatusProtos.ServerLoad sl = ClusterStatusProtos.ServerLoad.newBuilder()
       .addRegionLoads(rlOne).addRegionLoads(rlTwo).build();
     return sl;
+  }
+
+  @Test
+  public void testServerClientConnectionInfo() throws IOException, InterruptedException {
+    ClusterMetrics clusterMetrics =
+      admin.getClusterMetrics(EnumSet.of(ClusterMetrics.Option.LIVE_SERVERS));
+    clusterMetrics.getLiveServerMetrics().values().forEach(v -> {
+      assertTrue(v.getClientConnectionList().size() > 0);
+    });
   }
 
 }

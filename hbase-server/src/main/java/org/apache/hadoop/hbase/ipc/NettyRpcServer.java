@@ -24,12 +24,19 @@ import static org.apache.hadoop.hbase.io.crypto.tls.X509Util.HBASE_SERVER_NETTY_
 
 import java.io.IOException;
 import java.io.InterruptedIOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import org.apache.hadoop.conf.Configuration;
@@ -49,6 +56,7 @@ import org.apache.yetus.audience.InterfaceAudience;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.hbase.thirdparty.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.apache.hbase.thirdparty.io.netty.bootstrap.ServerBootstrap;
 import org.apache.hbase.thirdparty.io.netty.buffer.ByteBufAllocator;
 import org.apache.hbase.thirdparty.io.netty.buffer.PooledByteBufAllocator;
@@ -65,7 +73,10 @@ import org.apache.hbase.thirdparty.io.netty.channel.group.DefaultChannelGroup;
 import org.apache.hbase.thirdparty.io.netty.handler.ssl.OptionalSslHandler;
 import org.apache.hbase.thirdparty.io.netty.handler.ssl.SslContext;
 import org.apache.hbase.thirdparty.io.netty.handler.ssl.SslHandler;
+import org.apache.hbase.thirdparty.io.netty.util.AttributeKey;
 import org.apache.hbase.thirdparty.io.netty.util.concurrent.GlobalEventExecutor;
+
+import org.apache.hadoop.hbase.shaded.protobuf.generated.ClusterStatusProtos;
 
 /**
  * An RPC server with Netty4 implementation.
@@ -127,6 +138,13 @@ public class NettyRpcServer extends RpcServer {
   private final CountDownLatch closed = new CountDownLatch(1);
   private final Channel serverChannel;
   final ChannelGroup allChannels = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE, true);
+  public static final AttributeKey<ChannelAttributes> CHANNEL_CLIENT_ATTR_KEY =
+    AttributeKey.valueOf("ClientInfo");
+  public String channelServerInfo;
+
+  ScheduledExecutorService LOGClientInfoThread = Executors.newScheduledThreadPool(1,
+    new ThreadFactoryBuilder().setDaemon(true).setNameFormat("LOGClientInfo").build());
+
   private final ByteBufAllocator channelAllocator;
   private final AtomicReference<SslContext> sslContextForServer = new AtomicReference<>();
   private final AtomicReference<FileChangeWatcher> keyStoreWatcher = new AtomicReference<>();
@@ -189,6 +207,14 @@ public class NettyRpcServer extends RpcServer {
     try {
       serverChannel = bootstrap.bind(this.bindAddress).sync().channel();
       LOG.info("Bind to {}", serverChannel.localAddress());
+      allChannels.add(serverChannel);
+      InetAddress ia = InetAddress.getLocalHost();
+      String host = ia.getHostName();
+      String port = String.valueOf(bindAddress.getPort());
+      channelServerInfo = host + ":" + port + ":" + server.getClass().getSimpleName();
+      LOG.info("Server channel info is {}", channelServerInfo);
+      LOGClientInfoThread.scheduleAtFixedRate(() -> getClientConnectionInfo(), 5, 10,
+        TimeUnit.SECONDS);
     } catch (InterruptedException e) {
       throw new InterruptedIOException(e.getMessage());
     }
@@ -358,6 +384,7 @@ public class NettyRpcServer extends RpcServer {
     allChannels.close().awaitUninterruptibly();
     serverChannel.close();
     scheduler.stop();
+    LOGClientInfoThread.shutdown();
     closed.countDown();
     running = false;
   }
@@ -379,6 +406,56 @@ public class NettyRpcServer extends RpcServer {
   @Override
   public int getNumOpenConnections() {
     return allChannels.size();
+  }
+
+  public void getClientConnectionInfo() {
+    LOG.info("total {} channels", allChannels.size() - 1);
+    if (LOG.isTraceEnabled()) {
+      for (Channel ch : allChannels) {
+        ChannelAttributes attr = ch.attr(CHANNEL_CLIENT_ATTR_KEY).get();
+        if (attr != null) {
+          LOG.trace("channelId={},Info:{},serverInfo:{}", ch.id().asLongText(), attr,
+            channelServerInfo);
+        }
+      }
+    }
+  }
+
+  @Override
+  public List<ClusterStatusProtos.ClientInfo> getRSClientInfo() {
+
+    List<ClusterStatusProtos.ClientInfo> result = new ArrayList<>();
+    Map<String, ClusterStatusProtos.ClientInfo.Builder> clientBuilders = new HashMap<>();
+
+    for (Channel ch : allChannels) {
+      ChannelAttributes attr = ch.attr(CHANNEL_CLIENT_ATTR_KEY).get();
+
+      if (attr != null) {
+        String uniqKey = attr.convertUniqKey();
+        ClusterStatusProtos.ClientInfo.Builder builder =
+          clientBuilders.computeIfAbsent(uniqKey, key -> {
+            ClusterStatusProtos.ClientInfo.Builder tmpbuilder =
+              ClusterStatusProtos.ClientInfo.newBuilder();
+            tmpbuilder.setClientIp(attr.getClientIP());
+            tmpbuilder.setClientVersion(attr.getVersionInfo());
+            tmpbuilder.setUserName(attr.getUserName());
+            tmpbuilder.setAuth(attr.getAuthenticationMethod());
+            tmpbuilder.setServiceName(attr.getServiceName());
+            tmpbuilder.setServerInfo(channelServerInfo);
+            tmpbuilder.setAuth(attr.getAuthenticationMethod());
+            return tmpbuilder;
+          });
+        builder.addClientPorts(attr.getClientPort());
+      }
+    }
+
+    for (ClusterStatusProtos.ClientInfo.Builder clientBuilder : clientBuilders.values()) {
+      int socketNum = clientBuilder.getClientPortsList().size();
+      clientBuilder.setSocketNum(socketNum);
+      result.add(clientBuilder.build());
+    }
+
+    return result;
   }
 
   private void initSSL(ChannelPipeline p, NettyServerRpcConnection conn, boolean supportPlaintext)
