@@ -1287,7 +1287,7 @@ public class HRegionServer extends HBaseServerBase<RSRpcServices>
       .setStartTime(task.getStartTime()).setCompletionTime(task.getCompletionTimestamp()).build()));
 
     // add Client Info
-    serverLoad.addAllClientInfo(getRpcServer().getRSClientInfo());
+    serverLoad.addAllClientInfo(getRpcServer().getRPCClientInfo());
 
     return serverLoad.build();
   }

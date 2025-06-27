@@ -17,8 +17,8 @@
  */
 package org.apache.hadoop.hbase.ipc;
 
-import static org.apache.hadoop.hbase.ipc.NettyRpcServer.CHANNEL_CLIENT_ATTR_KEY;
 import static org.apache.hadoop.hbase.ipc.NettyRpcServer.LOG;
+import static org.apache.hadoop.hbase.ipc.NettyServerRpcClientStatistics.CHANNEL_CLIENT_ATTR_KEY;
 
 import java.io.IOException;
 import java.net.InetAddress;

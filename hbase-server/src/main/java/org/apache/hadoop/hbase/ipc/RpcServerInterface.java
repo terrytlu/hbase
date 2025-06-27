@@ -93,7 +93,7 @@ public interface RpcServerInterface {
   RpcCoprocessorHost getRpcCoprocessorHost();
 
   /** Return RPC server client connection info */
-  default List<ClusterStatusProtos.ClientInfo> getRSClientInfo() {
+  default List<ClusterStatusProtos.ClientInfo> getRPCClientInfo() {
     return new ArrayList<>();
   }
 }
