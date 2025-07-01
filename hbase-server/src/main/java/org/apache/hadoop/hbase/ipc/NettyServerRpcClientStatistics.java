@@ -27,6 +27,8 @@ import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.apache.hadoop.hbase.HBaseInterfaceAudience;
+import org.apache.yetus.audience.InterfaceAudience;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +38,7 @@ import org.apache.hbase.thirdparty.io.netty.util.AttributeKey;
 
 import org.apache.hadoop.hbase.shaded.protobuf.generated.ClusterStatusProtos;
 
+@InterfaceAudience.LimitedPrivate({ HBaseInterfaceAudience.CONFIG })
 public class NettyServerRpcClientStatistics {
 
   public static final Logger LOG = LoggerFactory.getLogger(NettyServerRpcClientStatistics.class);
